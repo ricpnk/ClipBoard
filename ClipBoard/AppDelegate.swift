@@ -9,12 +9,14 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
+    var hotkeyMonitor: Any?
     var clipboardHistory: [String] = []
     var lastClipboardContent: String = ""
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         startClipboardMonitoring()
+        setupGlobalHotkeyListener()
     }
 
     func setupMenuBar() {
@@ -53,6 +55,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         lastClipboardContent = NSPasteboard.general.string(forType: .string) ?? ""
         Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(checkClipboard), userInfo: nil, repeats: true)
     }
+    
+    
+    
+    
+    
+    func setupGlobalHotkeyListener(){
+        hotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]){
+            [weak self] event in guard let self = self else {return}
+            
+            let isCommandPressed = event.modifierFlags.contains(.command)
+            let isShiftPressed = event.modifierFlags.contains(.shift)
+            let isVKeyPressed = event.keyCode == 9
+            
+            if isCommandPressed && isShiftPressed && isVKeyPressed{
+                self.showPopup()
+            }
+            
+        }
+        
+    }
+    
+    
+    
+    
+    
 
     @objc func checkClipboard() {
         guard let content = NSPasteboard.general.string(forType: .string) else { return }
@@ -68,11 +95,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             updateMenu()
         }
     }
+    
     // copy the clicked entry
     @objc func copyEntry(_ sender: NSMenuItem) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(sender.title, forType: .string)
     }
+    
+    
+
+    func showPopup(){
+        print("showPopup is called!")
+    }
+    
+    
+    
+    
     
     
     @objc func openSettings() {
