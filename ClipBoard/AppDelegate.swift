@@ -31,37 +31,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let button = statusItem?.button {
             button.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard Manager")
+            button.toolTip = "Clipboard Manager"
             button.action = #selector(statusbarButtonClicked(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
-
-        updateMenu()
-    }
-
-    
-    // builds the menu with the last clipboard entries, settings and quit option
-    func updateMenu() {
+        
+        
         let menu = NSMenu()
-
-        if clipboardHistory.isEmpty {
-            let emptyItem = NSMenuItem(title: "Keine Einträge", action: nil, keyEquivalent: "")
-            emptyItem.isEnabled = false
-            menu.addItem(emptyItem)
-        } else {
-            for entry in clipboardHistory.prefix(5) {
-                let item = NSMenuItem(title: entry, action: #selector(copyEntry(_:)), keyEquivalent: "")
-                item.target = self
-                menu.addItem(item)
-            }
-        }
-
-        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
-
+        
         statusMenu = menu
     }
+
 
     // starts the monitoring for mac clipboard
     func startClipboardMonitoring() {
@@ -90,6 +73,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func showPopup(){
         print("showPopup is called!")
+        
+
         if popupWindow != nil {
             // method needs a param and nil is default
             popupWindow?.makeKeyAndOrderFront(nil)
@@ -97,15 +82,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return //????
         }
         
-        let popupView = PopupView()
+        let popupView = PopupView(history: clipboardHistory)
         let hostingController = NSHostingController(rootView: popupView)
         
         // build new NSWindow
-        let window = NSWindow(
+        let window = PopupPanel(
             contentRect: NSRect(x: 0, y: 0, width: 320, height: 240),
-            //style of the window
-            styleMask: [.titled, .closable],
-            backing: .buffered, defer: false
+            styleMask: [.nonactivatingPanel],
+            backing: .buffered,
+            defer: false
         )
         
         window.center()
@@ -115,17 +100,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.title = "Clipboard Popup"
         
-        // open window and set active
-        window.makeKeyAndOrderFront(nil)
+
         // floating over others
-        window.level = .floating
+        window.hasShadow = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.isMovableByWindowBackground = true
+        window.collectionBehavior = [.canJoinAllSpaces, .transient]
+        
+        
+        
+        
+        
+        
         // set window active
         NSApp.activate(ignoringOtherApps: true)
         
         
         //safes the reference in Propterty to check if window
+        window.makeKeyAndOrderFront(nil)
         popupWindow = window
 
+    }
+    
+    
+    
+    
+    @objc func updateContent() {
+        
+        if let window = popupWindow {
+            let updateView = PopupView(history: clipboardHistory)
+            let controller = NSHostingController(rootView: updateView)
+            window.contentView = controller.view
+        }
     }
     
     
@@ -140,7 +147,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func statusbarButtonClicked(_ sender: NSStatusBarButton) {
         let event = NSApp.currentEvent
         if event?.type == .rightMouseUp {
-            updateMenu()
             if let menu = statusMenu, let button = statusItem?.button {
                 let location = NSPoint(x: 0, y: button.bounds.height)
                 menu.popUp(positioning: nil, at: location, in: button)
@@ -165,9 +171,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if clipboardHistory.count > 50 {
                 clipboardHistory.removeLast()
             }
-            updateMenu()
+            updateContent()
         }
     }
+    
+    
+    
+    
+    
+    
+    
+    
     
     // copy the clicked entry
     @objc func copyEntry(_ sender: NSMenuItem) {

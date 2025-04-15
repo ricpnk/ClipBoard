@@ -8,22 +8,38 @@
 import SwiftUI
 
 struct PopupView: View {
+    let history: [String]
+    
     var body: some View {
-        VStack{
-            Text("Your ClipBoard")
-                .font(.title)
-                .bold()
-            Text("Here will be the content!")
+        ZStack {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("📋 Clipboard History")
+                    .font(.title2)
+                    .bold()
+                
+                List(history, id: \.self) { entry in
+                    Text(entry)
+                        .font(.system(size: 16))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(.clear)
+            }
+            .padding()
         }
-        .padding()
-        .frame(width: 300, height: 200)
-        .background(.ultraThinMaterial)
+        .background(.regularMaterial)
         .cornerRadius(16)
-        .shadow(radius: 10)
-        .transition(.move(edge: .top).combined(with:.opacity))
+        .frame(width: 300, height: 210)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
 
+extension PopupView {
+    static let example = PopupView(history: ["Hello", "World", "This", "is", "Testing"])
+}
+
 #Preview {
-    PopupView()
+    PopupView.example
 }
