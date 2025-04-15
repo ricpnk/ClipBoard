@@ -6,29 +6,41 @@
 //
 
 import Cocoa
+import SwiftUI
+
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var hotkeyMonitor: Any?
     var clipboardHistory: [String] = []
     var lastClipboardContent: String = ""
-
+    var popupWindow: NSWindow?
+    var statusMenu: NSMenu?
+    
+    
+    // Startup
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         startClipboardMonitoring()
         setupGlobalHotkeyListener()
     }
-
+    
+    //adds a Menubar Icon wich is clickable
     func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem?.button {
             button.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard Manager")
+            button.action = #selector(statusbarButtonClicked(_:))
+            button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
         updateMenu()
     }
 
+    
+    // builds the menu with the last clipboard entries, settings and quit option
     func updateMenu() {
         let menu = NSMenu()
 
@@ -48,18 +60,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
 
-        statusItem?.menu = menu
+        statusMenu = menu
     }
 
+    // starts the monitoring for mac clipboard
     func startClipboardMonitoring() {
         lastClipboardContent = NSPasteboard.general.string(forType: .string) ?? ""
         Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(checkClipboard), userInfo: nil, repeats: true)
     }
     
     
-    
-    
-    
+    // setup a Hotkey to open Popup
     func setupGlobalHotkeyListener(){
         hotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]){
             [weak self] event in guard let self = self else {return}
@@ -77,10 +88,72 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     
-    
-    
-    
+    func showPopup(){
+        print("showPopup is called!")
+        if popupWindow != nil {
+            // method needs a param and nil is default
+            popupWindow?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return //????
+        }
+        
+        let popupView = PopupView()
+        let hostingController = NSHostingController(rootView: popupView)
+        
+        // build new NSWindow
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 240),
+            //style of the window
+            styleMask: [.titled, .closable],
+            backing: .buffered, defer: false
+        )
+        
+        window.center()
+        // input the SwiftUI content
+        window.contentView = hostingController.view
+        // window stays in memory even when closed
+        window.isReleasedWhenClosed = false
+        window.title = "Clipboard Popup"
+        
+        // open window and set active
+        window.makeKeyAndOrderFront(nil)
+        // floating over others
+        window.level = .floating
+        // set window active
+        NSApp.activate(ignoringOtherApps: true)
+        
+        
+        //safes the reference in Propterty to check if window
+        popupWindow = window
 
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // action if statusBarButton is clicked
+    @objc func statusbarButtonClicked(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp {
+            updateMenu()
+            if let menu = statusMenu, let button = statusItem?.button {
+                let location = NSPoint(x: 0, y: button.bounds.height)
+                menu.popUp(positioning: nil, at: location, in: button)
+            }
+        } else {
+            showPopup()
+        }
+    }
+    
+    
+    
+    
+    // checking for clipboardcontent
     @objc func checkClipboard() {
         guard let content = NSPasteboard.general.string(forType: .string) else { return }
 
@@ -101,16 +174,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(sender.title, forType: .string)
     }
-    
-    
-
-    func showPopup(){
-        print("showPopup is called!")
-    }
-    
-    
-    
-    
     
     
     @objc func openSettings() {
